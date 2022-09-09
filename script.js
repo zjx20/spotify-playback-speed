@@ -34,8 +34,38 @@
     const element = base.apply(this, arguments);
     if (tagName === 'video' || tagName === 'audio') {
       spotifyPlaybackEl = element;
+      // document.spotifyPlaybackEl = element;
+      onGetPlaybackElement();
     }
     return element;
+  };
+
+  const onGetPlaybackElement = () => {
+    spotifyPlaybackEl.addEventListener('play', (event) => {
+      // update speed for current playback
+      setValues();
+
+      // skip ad
+      let adEl = document.querySelector("a[data-testid='context-item-info-ad-title']");
+      if (adEl) {
+        console.log("skip ad!");
+        document.spotifyPlaybackEl.currentTime = document.spotifyPlaybackEl.duration;
+      }
+    });
+  };
+
+  let applying = false;
+  const applyValues = () => {
+    if (spotifyPlaybackEl) {
+      spotifyPlaybackEl.playbackRate = Number(sliderInput.value);
+      spotifyPlaybackEl.preservesPitch = ppCheckbox.checked;
+      applying = false;
+      return;
+    }
+    if (!applying) {
+      applying = true;
+      setTimeout(applyValues, 50);
+    }
   };
 
   const setValues = () => {
@@ -63,6 +93,8 @@
     localStorage.setItem('sps-pp', pp);
     localStorage.setItem('sps-speed-min', min);
     localStorage.setItem('sps-speed-max', max);
+
+    applyValues();
   };
   let showSettings = false;
   let showMain = false;
@@ -272,12 +304,6 @@
 
     // set values
     setValues();
-    setInterval(() => {
-      if (spotifyPlaybackEl) {
-        spotifyPlaybackEl.playbackRate = Number(sliderInput.value);
-        spotifyPlaybackEl.preservesPitch = ppCheckbox.checked;
-      }
-    }, 50);
   };
 
   let tries = 0;
