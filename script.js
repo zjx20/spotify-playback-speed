@@ -31,25 +31,65 @@
   let iconSpan;
 
   document.createElement = function (tagName) {
+    // console.log("in hooked createElement ", tagName);
     const element = base.apply(this, arguments);
     if (tagName === 'video' || tagName === 'audio') {
-      spotifyPlaybackEl = element;
-      // document.spotifyPlaybackEl = element;
-      onGetPlaybackElement();
+      console.log("sps: created a new player");
+      if (!spotifyPlaybackEl) {
+        spotifyPlaybackEl = element;
+        document.spotifyPlaybackEl = element;
+        onGetPlaybackElement();
+      }
     }
     return element;
   };
 
   const onGetPlaybackElement = () => {
-    spotifyPlaybackEl.addEventListener('play', (event) => {
+    const skipAdPlaybackRate = 16;
+    var muted = false;
+    var volume = 0;
+    var playbackRate = 1;
+    var update = function() {
       // update speed for current playback
       setValues();
 
       // skip ad
-      let adEl = document.querySelector("a[data-testid='context-item-info-ad-title']");
+      let adEl = document.querySelector("a[data-context-item-type='ad']");
       if (adEl) {
-        console.log("skip ad!");
-        document.spotifyPlaybackEl.currentTime = document.spotifyPlaybackEl.duration;
+        // console.log("skip ad!");
+        // document.spotifyPlaybackEl.currentTime = document.spotifyPlaybackEl.duration;
+
+        if (document.spotifyPlaybackEl.volume > 0) {
+          console.log("mute!");
+          volume = document.spotifyPlaybackEl.volume;
+          document.spotifyPlaybackEl.volume = 0;
+          muted = true;
+        }
+        if (spotifyPlaybackEl.playbackRate < 1.5) {
+          console.log("change playback rate, current:", spotifyPlaybackEl.playbackRate);
+          playbackRate = spotifyPlaybackEl.playbackRate;
+          spotifyPlaybackEl.playbackRate = skipAdPlaybackRate;
+        }
+      } else {
+        if (muted) {
+          console.log("unmute!");
+          document.spotifyPlaybackEl.volume = volume;
+          muted = false;
+        }
+        if (spotifyPlaybackEl.playbackRate + 0.0005 >= skipAdPlaybackRate) {
+          console.log("restore playback rate, current:", spotifyPlaybackEl.playbackRate);
+          spotifyPlaybackEl.playbackRate = playbackRate;
+        }
+      }
+    };
+    var handle = null;
+    spotifyPlaybackEl.addEventListener('play', function() {
+      handle = setInterval(update, 100);
+    });
+    spotifyPlaybackEl.addEventListener('pause', function() {
+      if (handle) {
+        clearInterval(handle);
+        handle = null;
       }
     });
   };
@@ -190,7 +230,7 @@
     appEl.appendChild(spsMain);
     appEl.appendChild(spsIcon);
 
-    const volumeBarContainer = document.querySelector('.volume-bar').parentNode;
+    const volumeBarContainer = document.querySelector('[data-testid="volume-bar"]').parentNode;
     volumeBarContainer.insertBefore(
       appEl,
       volumeBarContainer.firstChild,
@@ -318,7 +358,8 @@
       addHTML();
       addJS();
       console.log('sps✅');
-    } catch {
+    } catch (e) {
+      console.error(e);
       if (tries <= 20) {
         setTimeout(init, 500);
         return;
